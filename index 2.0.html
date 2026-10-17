@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoLife — Ваш экологический помощник</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        #eco-map { height: 100%; min-height: 400px; width: 100%; z-index: 10; }
+        .tab-btn.active {
+            background-color: #10B981;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-800">
+
+    <!-- Header -->
+    <header class="bg-emerald-700 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('dashboard')">
+                <div class="bg-white p-2 rounded-xl text-emerald-600 font-black text-xl shadow">
+                    <i class="fa-solid font-bold fa-leaf"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight">EcoLife</span>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <div class="bg-emerald-800/80 px-3 py-1.5 rounded-full flex items-center space-x-2 text-sm font-medium border border-emerald-600">
+                    <i class="fa-solid fa-fire text-amber-400"></i>
+                    <span id="user-points">0</span> <span class="text-xs opacity-80">эко-баллов</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-16 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex space-x-2 py-2 overflow-x-auto no-scrollbar">
+                <button onclick="switchTab('dashboard')" id="btn-dashboard" class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-chart-line"></i><span>Главная</span>
+                </button>
+                <button onclick="switchTab('calc')" id="btn-calc" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-calculator"></i><span>Калькулятор</span>
+                </button>
+                <button onclick="switchTab('tasks')" id="btn-tasks" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-list-check"></i><span>Задания</span>
+                </button>
+                <button onclick="switchTab('map')" id="btn-map" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-map-location-dot"></i><span>Эко-Карта</span>
+                </button>
+                <button onclick="switchTab('tips')" id="btn-tips" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-lightbulb"></i><span>Советы</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- TAB 1: DASHBOARD & STATS -->
+        <section id="tab-dashboard" class="space-y-6">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
+                <h1 class="text-2xl sm:text-3xl font-bold">Твой экологический вклад 🌿</h1>
+                <p class="mt-1 text-emerald-100 text-sm sm:text-base">Каждое маленькое действие делает планету чище. Отслеживай прогресс здесь!</p>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-cloud-arrow-down"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-slate-900" id="stat-co2">0.0 кг</div>
+                        <div class="text-xs text-slate-500 font-medium">Сэкономлено CO₂</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-droplet"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-slate-900" id="stat-water">0 л</div>
+                        <div class="text-xs text-slate-500 font-medium">Сбережено воды</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-slate-900" id="stat-energy">0 кВт⋅ч</div>
+                        <div class="text-xs text-slate-500 font-medium">Сэкономлено энергии</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-slate-900" id="stat-tasks">0</div>
+                        <div class="text-xs text-slate-500 font-medium">Выполнено заданий</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions & Daily Tip -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-calendar-check text-emerald-600"></i>
+                        <span>Сегодняшние рекомендации</span>
+                    </h2>
+                    <div class="space-y-3" id="quick-tasks-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <span class="inline-block px-3 py-1 bg-emerald-200 text-emerald-800 rounded-full text-xs font-semibold mb-3">Совет дня</span>
+                        <h3 class="font-bold text-slate-800 text-lg mb-2" id="daily-tip-title">Загрузка...</h3>
+                        <p class="text-sm text-slate-600 leading-relaxed" id="daily-tip-text">...</p>
+                    </div>
+                    <button onclick="switchTab('tips')" class="mt-4 w-full py-2.5 bg-white text-emerald-700 rounded-xl font-medium border border-emerald-200 hover:bg-emerald-50 transition text-sm">
+                        Больше советов <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: RESOURCE CALCULATOR -->
+        <section id="tab-calc" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm max-w-3xl mx-auto">
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Калькулятор экономии ресурсов</h2>
+                <p class="text-slate-500 text-sm mb-6">Рассчитайте свой годовой экологический и финансовый эффект от простых привычек.</p>
+
+                <div class="space-y-6">
+                    <!-- Option 1: Water habits -->
+                    <div class="p-4 bg-slate-50 rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="font-semibold text-slate-700 text-sm">Выключение воды во время чистки зубов</label>
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-medium">Вода</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="calc-teeth" min="0" max="4" value="2" class="w-full accent-emerald-600" oninput="calculateSavings()">
+                            <span class="text-sm font-bold w-20 text-right" id="calc-teeth-val">2 раза/день</span>
+                        </div>
+                    </div>
+
+                    <!-- Option 2: Shower time -->
+                    <div class="p-4 bg-slate-50 rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="font-semibold text-slate-700 text-sm">Сокращение душа на 3 минуты</label>
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-medium">Вода & Энергия</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="calc-shower" min="0" max="7" value="5" class="w-full accent-emerald-600" oninput="calculateSavings()">
+                            <span class="text-sm font-bold w-20 text-right" id="calc-shower-val">5 дней/нед</span>
+                        </div>
+                    </div>
+
+                    <!-- Option 3: LED lights -->
+                    <div class="p-4 bg-slate-50 rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="font-semibold text-slate-700 text-sm">Использование светодиодных (LED) ламп</label>
+                            <span class="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">Электричество</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="calc-led" min="0" max="20" value="8" class="w-full accent-emerald-600" oninput="calculateSavings()">
+                            <span class="text-sm font-bold w-20 text-right" id="calc-led-val">8 ламп</span>
+                        </div>
+                    </div>
+
+                    <!-- Option 4: Reusable bag -->
+                    <div class="p-4 bg-slate-50 rounded-xl space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="font-semibold text-slate-700 text-sm">Отказ от пластиковых пакетов в пользу шопера</label>
+                            <span class="text-xs bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-medium">Отходы</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="calc-bags" min="0" max="15" value="4" class="w-full accent-emerald-600" oninput="calculateSavings()">
+                            <span class="text-sm font-bold w-20 text-right" id="calc-bags-val">4 шт/нед</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Block -->
+                <div class="mt-8 p-6 bg-emerald-50 rounded-2xl border border-emerald-100">
+                    <h3 class="text-lg font-bold text-emerald-900 mb-4">Ваша экономия за 1 год:</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                        <div class="bg-white p-4 rounded-xl shadow-sm">
+                            <div class="text-xs text-slate-500">Сбереженная вода</div>
+                            <div class="text-2xl font-black text-blue-600 mt-1" id="res-water">0 л</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm">
+                            <div class="text-xs text-slate-500">Энергия</div>
+                            <div class="text-2xl font-black text-amber-500 mt-1" id="res-energy">0 кВт⋅ч</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm">
+                            <div class="text-xs text-slate-500">Пластиковые пакеты</div>
+                            <div class="text-2xl font-black text-emerald-600 mt-1" id="res-plastic">0 шт</div>
+                        </div>
+                    </div>
+                    <button onclick="saveCalculatorProgress()" class="mt-6 w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition shadow">
+                        Засчитать эти действия в мою статистику
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: ECO TASKS -->
+        <section id="tab-tasks" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Экологические челленджи</h2>
+                    <p class="text-slate-500 text-sm">Выполняйте задания, зарабатывайте баллы и снижайте след на природу.</p>
+                </div>
+                <!-- Category Filter -->
+                <div class="flex space-x-2">
+                    <button onclick="filterTasks('all')" class="task-filter active px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white">Все</button>
+                    <button onclick="filterTasks('daily')" class="task-filter px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300">Ежедневные</button>
+                    <button onclick="filterTasks('weekly')" class="task-filter px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300">Недельные</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="tasks-container">
+                <!-- Tasks loaded via JS -->
+            </div>
+        </section>
+
+        <!-- TAB 4: ECO MAP -->
+        <section id="tab-map" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-md-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Интерактивная Эко-Карта</h2>
+                    <p class="text-xs text-slate-500">Находите пункты раздельного сбора отходов, эко-магазины и парки.</p>
+                </div>
+                <!-- Filter category -->
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="filterMapPoints('all')" class="map-filter px-3 py-1.5 text-xs rounded-lg bg-emerald-600 text-white font-medium">Все</button>
+                    <button onclick="filterMapPoints('recycle')" class="map-filter px-3 py-1.5 text-xs rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium"><i class="fa-solid fa-recycle text-emerald-600 mr-1"></i>Раздельный сбор</button>
+                    <button onclick="filterMapPoints('eco-shop')" class="map-filter px-3 py-1.5 text-xs rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium"><i class="fa-solid fa-store text-blue-600 mr-1"></i>Эко-магазины</button>
+                    <button onclick="filterMapPoints('park')" class="map-filter px-3 py-1.5 text-xs rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium"><i class="fa-solid fa-tree text-green-600 mr-1"></i>Парки</button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-100 p-2 shadow-sm relative overflow-hidden" style="height: 500px;">
+                <div id="eco-map" class="rounded-xl"></div>
+            </div>
+        </section>
+
+        <!-- TAB 5: TIPS & ARTICLES -->
+        <section id="tab-tips" class="hidden space-y-6">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800">Полезные эко-советы</h2>
+                <p class="text-slate-500 text-sm">Простые руководство для перехода на более осознанный образ жизни.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="tips-grid">
+                <!-- Tips dynamically rendered -->
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Global Application State
+        const state = {
+            points: 0,
+            stats: {
+                co2: 0,
+                water: 0,
+                energy: 0,
+                tasksCompleted: 0
+            },
+            completedTasks: new Set(),
+            map: null,
+            mapMarkers: []
+        };
+
+        // Eco Tips Data
+        const ecoTips = [
+            {
+                id: 1,
+                title: "Осознанные покупки",
+                category: "Покупки",
+                desc: "Составляйте список перед походом в магазин. Это экономит бюджет и предотвращает выброс лишних продуктов.",
+                icon: "fa-cart-shopping",
+                color: "emerald"
+            },
+            {
+                id: 2,
+                title: "Энергосбережение дома",
+                category: "Энергия",
+                desc: "Выключайте технику из розетки. В режиме ожидания приборы продолжают потреблять до 10% электроэнергии.",
+                icon: "fa-plug",
+                color: "amber"
+            },
+            {
+                id: 3,
+                title: "Правильная сортировка",
+                category: "Отходы",
+                desc: "Промывайте пластиковую и стеклянную тару перед сдачей в переработку. Чистое сырье легче переработать.",
+                icon: "fa-recycle",
+                color: "blue"
+            },
+            {
+                id: 4,
+                title: "Экономия воды",
+                category: "Водные ресурсы",
+                desc: "Установите аэраторы на краны. Они смешивают воду с воздухом, сокращая расход на 30-50% без потери напора.",
+                icon: "fa-droplet",
+                color: "sky"
+            },
+            {
+                id: 5,
+                title: "Эко-транспорт",
+                category: "Транспорт",
+                desc: "Заменяйте короткие поездки на автомобиле ходьбой или велосипедом. Это полезно и для здоровья, и для воздуха.",
+                icon: "fa-bicycle",
+                color: "teal"
+            },
+            {
+                id: 6,
+                title: "Многоразовые альтернативы",
+                category: "Быт",
+                desc: "Носите с собой термокружку и бутылку для воды. Это спасет сотни одноразовых стаканов и бутылок за год.",
+                icon: "fa-bottle-water",
+                color: "indigo"
+            }
+        ];
+
+        // Eco Tasks Data
+        const ecoTasks = [
+            { id: 't1', title: 'Отказаться от пластикового пакета', pts: 15, co2: 0.1, category: 'daily', desc: 'Использовать собственную сумочку или шопер.' },
+            { id: 't2', title: 'Принять короткий душ (до 5 минут)', pts: 20, water: 30, category: 'daily', desc: 'Сбережет около 30-40 литров чистой воды.' },
+            { id: 't3', title: 'Сдать батарейки на утилизацию', pts: 50, co2: 0.5, category: 'weekly', desc: 'Одна батарейка загрязняет 20 кв.м почвы.' },
+            { id: 't4', title: 'День без мяса', pts: 40, co2: 2.5, category: 'weekly', desc: 'Растительный рацион снижает углеродный след.' },
+            { id: 't5', title: 'Выключить свет во всех пустых комнатах', pts: 10, energy: 0.5, category: 'daily', desc: 'Простая привычка для сбережения ресурсов.' },
+            { id: 't6', title: 'Использовать многоразовую бутылку', pts: 15, co2: 0.2, category: 'daily', desc: 'Не покупайте воду в одноразовом пластике сегодня.' }
+        ];
+
+        // Map Points (Sample Eco Locations)
+        const mapLocations = [
+            { lat: 41.428, lng: 75.991, title: 'Пункт приема макулатуры и пластика', type: 'recycle', desc: 'Прием ПЭТ, картона и бумаги.' },
+            { lat: 41.432, lng: 75.985, title: 'Эко-лавка "Зеленый дом"', type: 'eco-shop', desc: 'Товары без упаковки и натуральная косметика.' },
+            { lat: 41.425, lng: 76.000, title: 'Центральный эко-парк', type: 'park', desc: 'Зеленая зона для прогулок и отдыха.' },
+            { lat: 41.435, lng: 75.995, title: 'Контейнер для сбора батареек', type: 'recycle', desc: 'Безопасная утилизация опасных отходов.' }
+        ];
+
+        // Initialization
+        window.onload = function() {
+            renderDailyTip();
+            renderTasks();
+            renderTips();
+            calculateSavings();
+            updateStatsUI();
+        };
+
+        // Navigation Switcher
+        function switchTab(tabId) {
+            document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`btn-${tabId}`).classList.add('active');
+
+            if (tabId === 'map') {
+                setTimeout(initMap, 200); // Trigger Leaflet map resize/init
+            }
+        }
+
+        // Resource Calculator
+        function calculateSavings() {
+            const teeth = parseInt(document.getElementById('calc-teeth').value);
+            const shower = parseInt(document.getElementById('calc-shower').value);
+            const led = parseInt(document.getElementById('calc-led').value);
+            const bags = parseInt(document.getElementById('calc-bags').value);
+
+            // Dynamic Value Display Updates
+            document.getElementById('calc-teeth-val').innerText = `${teeth} раз/день`;
+            document.getElementById('calc-shower-val').innerText = `${shower} дн/нед`;
+            document.getElementById('calc-led-val').innerText = `${led} ламп`;
+            document.getElementById('calc-bags-val').innerText = `${bags} шт/нед`;
+
+            // Annual Savings Formulas
+            const waterSaved = (teeth * 8 * 365) + (shower * 35 * 52); // liters
+            const energySaved = (led * 30 * 0.8) + (shower * 1.2 * 52); // kWh
+            const plasticSaved = bags * 52; // pieces
+
+            document.getElementById('res-water').innerText = `${Math.round(waterSaved).toLocaleString()} л`;
+            document.getElementById('res-energy').innerText = `${Math.round(energySaved).toLocaleString()} кВт⋅ч`;
+            document.getElementById('res-plastic').innerText = `${Math.round(plasticSaved).toLocaleString()} шт`;
+
+            return { waterSaved, energySaved, plasticSaved };
+        }
+
+        function saveCalculatorProgress() {
+            const { waterSaved, energySaved } = calculateSavings();
+            state.stats.water += Math.round(waterSaved / 12); // Add 1 month equivalent
+            state.stats.energy += Math.round(energySaved / 12);
+            state.stats.co2 += parseFloat(((energySaved / 12) * 0.4).toFixed(1));
+            
+            updateStatsUI();
+            alert('Отлично! Достижения за месяц внесены в вашу общую статистику.');
+        }
+
+        // Render Tasks
+        function renderTasks(filter = 'all') {
+            const container = document.getElementById('tasks-container');
+            const quickContainer = document.getElementById('quick-tasks-list');
+            container.innerHTML = '';
+            if (quickContainer) quickContainer.innerHTML = '';
+
+            const filtered = filter === 'all' ? ecoTasks : ecoTasks.filter(t => t.category === filter);
+
+            filtered.forEach(task => {
+                const isDone = state.completedTasks.has(task.id);
+                
+                const taskEl = document.createElement('div');
+                taskEl.className = `p-4 rounded-xl border ${isDone ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-100'} shadow-sm flex items-center justify-between transition`;
+                taskEl.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <button onclick="toggleTask('${task.id}')" class="mt-1 w-6 h-6 rounded-full border flex items-center justify-center transition ${isDone ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 hover:border-emerald-500'}">
+                            ${isDone ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                        </button>
+                        <div>
+                            <h4 class="font-semibold text-slate-800 text-sm ${isDone ? 'line-through text-slate-400' : ''}">${task.title}</h4>
+                            <p class="text-xs text-slate-500 mt-0.5">${task.desc}</p>
+                            <span class="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">+${task.pts} эко-баллов</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(taskEl);
+            });
+
+            // Populate dashboard quick view with first 3 daily tasks
+            if (quickContainer) {
+                ecoTasks.slice(0, 3).forEach(task => {
+                    const isDone = state.completedTasks.has(task.id);
+                    const qEl = document.createElement('div');
+                    qEl.className = 'flex items-center justify-between p-3 bg-slate-50 rounded-xl text-sm';
+                    qEl.innerHTML = `
+                        <span class="${isDone ? 'line-through text-slate-400' : 'text-slate-700 font-medium'}">${task.title}</span>
+                        <button onclick="toggleTask('${task.id}')" class="px-3 py-1 rounded-lg text-xs font-semibold ${isDone ? 'bg-slate-200 text-slate-600' : 'bg-emerald-600 text-white hover:bg-emerald-700'}">
+                            ${isDone ? 'Готово' : 'Выполнить'}
+                        </button>
+                    `;
+                    quickContainer.appendChild(qEl);
+                });
+            }
+        }
+
+        function filterTasks(cat) {
+            document.querySelectorAll('.task-filter').forEach(btn => {
+                btn.classList.remove('bg-emerald-600', 'text-white');
+                btn.classList.add('bg-slate-200', 'text-slate-700');
+            });
+            event.target.classList.remove('bg-slate-200', 'text-slate-700');
+            event.target.classList.add('bg-emerald-600', 'text-white');
+            renderTasks(cat);
+        }
+
+        function toggleTask(id) {
+            const task = ecoTasks.find(t => t.id === id);
+            if (!task) return;
+
+            if (state.completedTasks.has(id)) {
+                state.completedTasks.delete(id);
+                state.points -= task.pts;
+                state.stats.tasksCompleted -= 1;
+                if (task.co2) state.stats.co2 -= task.co2;
+                if (task.water) state.stats.water -= task.water;
+                if (task.energy) state.stats.energy -= task.energy;
+            } else {
+                state.completedTasks.add(id);
+                state.points += task.pts;
+                state.stats.tasksCompleted += 1;
+                if (task.co2) state.stats.co2 += task.co2;
+                if (task.water) state.stats.water += task.water;
+                if (task.energy) state.stats.energy += task.energy;
+            }
+
+            updateStatsUI();
+            renderTasks();
+        }
+
+        // Render Eco Tips
+        function renderTips() {
+            const container = document.getElementById('tips-grid');
+            container.innerHTML = '';
+
+            ecoTips.forEach(tip => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition';
+                card.innerHTML = `
+                    <div>
+                        <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg mb-3">
+                            <i class="fa-solid ${tip.icon}"></i>
+                        </div>
+                        <span class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">${tip.category}</span>
+                        <h3 class="font-bold text-slate-800 text-base mt-1 mb-2">${tip.title}</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">${tip.desc}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderDailyTip() {
+            const randomTip = ecoTips[Math.floor(Math.random() * ecoTips.length)];
+            document.getElementById('daily-tip-title').innerText = randomTip.title;
+            document.getElementById('daily-tip-text').innerText = randomTip.desc;
+        }
+
+        // Initialize Map
+        function initMap() {
+            if (state.map) return; // Prevent re-initialization
+
+            // Center around default location (Naryn)
+            state.map = L.map('eco-map').setView([41.428, 75.991], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(state.map);
+
+            renderMapMarkers('all');
+        }
+
+        function renderMapMarkers(filter) {
+            if (!state.map) return;
+
+            // Clear existing
+            state.mapMarkers.forEach(m => state.map.removeLayer(m));
+            state.mapMarkers = [];
+
+            const filtered = filter === 'all' ? mapLocations : mapLocations.filter(loc => loc.type === filter);
+
+            filtered.forEach(loc => {
+                const marker = L.marker([loc.lat, loc.lng]).addTo(state.map);
+                marker.bindPopup(`
+                    <div class="p-1">
+                        <strong class="text-slate-800 text-sm">${loc.title}</strong>
+                        <p class="text-xs text-slate-500 mt-1">${loc.desc}</p>
+                    </div>
+                `);
+                state.mapMarkers.push(marker);
+            });
+        }
+
+        function filterMapPoints(type) {
+            document.querySelectorAll('.map-filter').forEach(btn => {
+                btn.classList.remove('bg-emerald-600', 'text-white');
+                btn.classList.add('bg-slate-100', 'text-slate-700');
+            });
+            event.target.classList.remove('bg-slate-100', 'text-slate-700');
+            event.target.classList.add('bg-emerald-600', 'text-white');
+            renderMapMarkers(type);
+        }
+
+        // Update Global Stats
+        function updateStatsUI() {
+            document.getElementById('user-points').innerText = state.points;
+            document.getElementById('stat-co2').innerText = `${state.stats.co2.toFixed(1)} кг`;
+            document.getElementById('stat-water').innerText = `${state.stats.water} л`;
+            document.getElementById('stat-energy').innerText = `${state.stats.energy} кВт⋅ч`;
+            document.getElementById('stat-tasks').innerText = state.stats.tasksCompleted;
+        }
+    </script>
+</body>
+</html>
